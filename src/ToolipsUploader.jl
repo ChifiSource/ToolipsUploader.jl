@@ -27,7 +27,7 @@ function fileinput(c::Connection, name::String)
         let req = new XMLHttpRequest();
         req.open("POST", '/uploader/upload');
         var reader = new FileReader();
-        var fin = reader.readAsBinaryString(thefile);
+        var fin = reader.readAsText(thefile);
         req.send(thefile.name + ':' + fin);""")
     end
     inp::Component
