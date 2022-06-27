@@ -17,7 +17,7 @@ mutable struct Uploader <: ServerExtension
     end
 end
 
-function fileinput(name::String)
+function fileinput(c::Connection, name::String)
     inp::Component = input(name, type = "file")
     on(c, inp, "change") do cm::ComponentModifier
         push!(cm.changes, """
@@ -39,5 +39,5 @@ function uploadsave(dir::String, s::String)
         write(io, body)
     end
 end
-
+export Uploader, fileinput
 end # module
