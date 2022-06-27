@@ -10,8 +10,10 @@ mutable struct Uploader <: ServerExtension
     function Uploader(directory::String = "public/uploads",
         upload_f::Function = uploadsave)
         f(rs::Dict{String, Function}, es::Dict{Symbol, ServerExtension}) = begin
-            rs["/uploader/upload"] = (c::Connection) -> upload_f(directory,
-                                                    getpost(c)); write!(c, " ")
+            rs["/uploader/upload"] = none(c::Connection) = begin
+                upload_f(directory, getpost(c))
+                write!(c, " ")
+            end
         end
         new(:routing, directory, f)
     end
