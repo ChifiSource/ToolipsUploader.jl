@@ -35,7 +35,7 @@ function uploadsave(dir::String, s::String)
     name = string(namebody[1])
     body = string(namebody[2])
     touch("$dir/$name")
-    open("$dir/$name") do io
+    open("$dir/$name", "w") do io
         write(io, body)
     end
 end
