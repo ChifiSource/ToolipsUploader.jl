@@ -23,12 +23,17 @@ function fileinput(c::Connection, name::String)
     inp::Component = input(name, type = "file", name = "fname")
     on(c, inp, "change") do cm::ComponentModifier
         push!(cm.changes, """
+        function handleFileLoad(event) {
+            console.log(event);
+            req.send(thefile.name + ':' + event.target.result;);
+        }
         let thefile = document.getElementById("$name").files[0];
         let req = new XMLHttpRequest();
         req.open("POST", '/uploader/upload');
         var reader = new FileReader();
         var fin = reader.readAsText(thefile);
-        req.send(thefile.name + ':' + fin);""")
+        reader.onload = handleFileLoad;
+        """)
     end
     inp::Component
 end
