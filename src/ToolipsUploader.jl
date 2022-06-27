@@ -23,10 +23,11 @@ function fileinput(c::Connection, name::String)
     inp::Component = input(name, type = "file", name = "fname")
     on(c, inp, "change") do cm::ComponentModifier
         push!(cm.changes, """
-        let photo = document.getElementById("$name").files[0];
+        let thefile = document.getElementById("$name").files[0];
         let req = new XMLHttpRequest();
         req.open("POST", '/uploader/upload');
-        req.send(photo.name + ':' + photo);""")
+        var reader = new FileReader();
+        req.send(thefile.name + ':' + reader.readAsBinaryString(thefile););""")
     end
     inp::Component
 end
