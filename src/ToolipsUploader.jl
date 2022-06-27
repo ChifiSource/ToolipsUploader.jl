@@ -20,14 +20,13 @@ mutable struct Uploader <: ServerExtension
 end
 
 function fileinput(c::Connection, name::String)
-    inp::Component = input(name, type = "file")
+    inp::Component = input(name, type = "file", name = "fname")
     on(c, inp, "change") do cm::ComponentModifier
         push!(cm.changes, """
         let photo = document.getElementById("$name").files[0];
-        let fname = document.getElementById("$name").name;
         let req = new XMLHttpRequest();
         req.open("POST", '/uploader/upload');
-        req.send(fname + ':' + photo);""")
+        req.send(photo.name + ':' + photo);""")
     end
     inp::Component
 end
