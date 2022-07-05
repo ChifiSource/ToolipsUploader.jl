@@ -20,28 +20,12 @@ mutable struct Uploader <: ServerExtension
 end
 
 function fileinput(c::Connection, name::String)
-    inp::Component = input(name, type = "file", name = "fname")
-    on(c, inp, "change") do cm::ComponentModifier
-        push!(cm.changes, """
-        function handleFileLoad(event) {
-            console.log(event);
-            req.send(thefile.name + ':' + event.target.result;);
-        }
-        let thefile = document.getElementById("$name").files[0];
-        let req = new XMLHttpRequest();
-        req.open("POST", '/uploader/upload');
-        var reader = new FileReader();
-        var fin = reader.readAsText(thefile);
-        reader.onload = handleFileLoad;
-        """)
-    end
-    inp::Component
+    inp::Component = input(name * "input", type = "file", name = "fname")
+    impform = form(name, onaction = "/uploader/upload")
 end
 
 function uploadsave(dir::String, s::String)
-    namebody = split(s, ":")
-    name = string(namebody[1])
-    body = string(namebody[2])
+    println()
     touch("$dir/$name")
     open("$dir/$name", "w") do io
         write(io, body)
