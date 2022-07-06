@@ -16,7 +16,7 @@ mutable struct Uploader <: ServerExtension
     end
 end
 
-function fileinput(c::Connection, name::String)
+function fileinput(c::Connection)
     inp::Component = input(name * "input", type = "file", name = "fname")
     inpform::Component = form(name, onaction = "/uploader/upload", )
     push!(inpform, inp)
