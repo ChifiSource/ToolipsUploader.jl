@@ -11,12 +11,23 @@ mutable struct Uploader <: ServerExtension
         upload_f::Function = uploadsave)
         f(rs::Dict{String, Function}, es::Dict{Symbol, ServerExtension}) = begin
             rs["/uploader/upload"] = upload_f
+            if ~(isdir(directory))
+                try
+                    mkdir(directory)
+                catch
+                    throw("""No directory $directory , server tried to create
+                    directory but was not able to.
+                    """)
+                end
+            end
+
         end
         new(:routing, directory, f)
     end
 end
 
-function fileinput(name::String, message::String = "  Uploaded succesfully!    ")
+function fileinput(name::String = "",
+    message::String = "  Uploaded succesfully!    ")
     inp::Component = input(name * "input", type = "file", name = "fname")
     inp["onchange"] = """sendFile(this);"""
     sendscript::Component = script("readscript$name", text = """function readFile(input) {
@@ -31,8 +42,8 @@ function fileinput(name::String, message::String = "  Uploaded succesfully!    "
       xhr.open("POST", "/uploader/upload");
       xhr.setRequestHeader("Accept", "application/json");
       xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.onload = () => document.getElementById("$name").innerHTML = `$message`
-      xhr.send(reader.result);
+      xhr.onload = () => document.getElementById("$name").style.content = `$message`;
+      xhr.send(reader.result + "?UP?:" + file.name);
   };
 
   reader.onerror = function() {
@@ -44,9 +55,23 @@ function fileinput(name::String, message::String = "  Uploaded succesfully!    "
     inp
 end
 
+function customfileinput()
+
+end
+
+function multifileinput()
+
+end
+
 function uploadsave(c::Connection)
-    data = getpost(c)
-    c[:Logger].log(data)
+    data = split(getpost(c), "?UP?:")
+    name = string(data[2])
+    file = string(data[1])
+    touch(c[:Uploader].directory * name)
+    open(c[:Uploader].directory * name, "r") do io
+        write(io, file)
+    end
+    write!(c, "File uploaded successfully")
 end
 export Uploader, fileinput
 end # module
