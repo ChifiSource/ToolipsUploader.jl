@@ -16,21 +16,37 @@ mutable struct Uploader <: ServerExtension
     end
 end
 
-function fileinput(name::String)
+function fileinput(name::String, message::String = "  Uploaded succesfully!    ")
     inp::Component = input(name * "input", type = "file", name = "fname")
-    inpform::Component = form(name, onaction = "/uploader/upload", )
-    push!(inpform, inp)
-    inpform
+    inp["onchange"] = """sendFile(this);"""
+    sendscript::Component = script("readscript$name", text = """function readFile(input) {
+  let file = input.files[0];
+
+  let reader = new FileReader();
+
+  reader.readAsText(file);
+
+  reader.onload = function() {
+      let xhr = new XMLHttpRequest();
+      xhr.open("POST", "/uploader/upload");
+      xhr.setRequestHeader("Accept", "application/json");
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.onload = () => document.getElementById("$name").innerHTML = `$message`
+      xhr.send(reader.result);
+  };
+
+  reader.onerror = function() {
+    console.log(reader.error);
+  };
+
+}""")
+    push!(inp.extras, sendscript)
+    inp
 end
 
 function uploadsave(c::Connection)
-    try
-        c[:Logger].log("incoming uploader")
-        x = getpost(c)
-        c[:Logger.log("hello!")]
-    catch
-        c[:Logger].log("failed to get post")
-    end
+    data = getpost(c)
+    c[:Logger].log(data)
 end
 export Uploader, fileinput
 end # module
