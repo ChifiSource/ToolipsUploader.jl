@@ -32,6 +32,6 @@ function uploadsave(dir::String, s::String)
     open("$dir/$name", "w") do io
         write(io, body)
     end
-end9
+end
 export Uploader, fileinput
 end # module
