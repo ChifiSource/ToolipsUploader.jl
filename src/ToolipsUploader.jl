@@ -21,7 +21,7 @@ end
 
 function fileinput(c::Connection, name::String)
     inp::Component = input(name * "input", type = "file", name = "fname")
-    impform::Component = form(name, onaction = "/uploader/upload", )
+    inpform::Component = form(name, onaction = "/uploader/upload", )
     push!(inpform, inp)
     inpform
 end
