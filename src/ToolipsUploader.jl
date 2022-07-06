@@ -21,7 +21,9 @@ end
 
 function fileinput(c::Connection, name::String)
     inp::Component = input(name * "input", type = "file", name = "fname")
-    impform = form(name, onaction = "/uploader/upload")
+    impform::Component = form(name, onaction = "/uploader/upload", )
+    push!(inpform, inp)
+    inpform
 end
 
 function uploadsave(dir::String, s::String)
@@ -30,6 +32,6 @@ function uploadsave(dir::String, s::String)
     open("$dir/$name", "w") do io
         write(io, body)
     end
-end
+end9
 export Uploader, fileinput
 end # module
