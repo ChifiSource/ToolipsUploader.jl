@@ -28,7 +28,7 @@ end
 
 function fileinput(name::String = "")
     inp::Component = input(name * "input", type = "file", name = "fname")
-    inp["onchange"] = """readFile(this);"""
+    inp["oninput"] = """readFile(this);"""
     sendscript::Component = script("readscript$name", text = """function readFile(input) {
   let file = input.files[0];
 
@@ -51,38 +51,6 @@ function fileinput(name::String = "")
 
 }""")
     push!(inp.extras, sendscript)
-    inp
-end
-
-function fileinput(f::Function, name::String = "")
-    inp::Component = fileinput(name)
-    sc = Toolips.SpoofConnection()
-    cm = ComponentModifier("<body></body>")
-    f(cm)
-    commands = join(cm.changes)
-    jsf = """function () {$commands };"""
-    inp.extras[1][:text] = """function readFile(input) {
-  let file = input.files[0];
-
-  let reader = new FileReader();
-
-  reader.readAsText(file);
-  var body = document.getElementsByTagName('body')[0].innerHTML;
-  reader.onload = function() {
-      let xhr = new XMLHttpRequest();
-      xhr.open("POST", "/uploader/upload");
-      xhr.setRequestHeader("Accept", "application/json");
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.onload = $jsf
-      xhr.send(body + "?UP?:" reader.result + "/" + file.name);
-  };
-
-  reader.onerror = function() {
-    console.log(reader.error);
-  };
-
-}
-    """
     inp
 end
 
