@@ -42,7 +42,7 @@ function fileinput(name::String = "")
       xhr.setRequestHeader("Accept", "application/json");
       xhr.setRequestHeader("Content-Type", "application/json");
       xhr.onload = eval(xhr.responseText);
-      xhr.send(body + "?UP?:" reader.result + "/" + file.name);
+      xhr.send(reader.result + "?UP?:" + file.name);
   };
 
   reader.onerror = function() {
