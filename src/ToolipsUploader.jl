@@ -68,7 +68,7 @@ function uploadsave(c::Connection)
     name = string(data[2])
     file = string(data[1])
     touch(c[:Uploader].directory * name)
-    open(c[:Uploader].directory * name, "r") do io
+    open(c[:Uploader].directory * name, "w") do io
         write(io, file)
     end
     write!(c, "File uploaded successfully")
