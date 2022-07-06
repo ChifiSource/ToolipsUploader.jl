@@ -4,7 +4,7 @@ import Toolips: ServerExtension
 using ToolipsSession
 
 mutable struct Uploader <: ServerExtension
-    type::Symbol
+    type::Vector{Symbol}
     directory::String
     f::Function
     function Uploader(directory::String = "public/uploads",
@@ -22,14 +22,14 @@ mutable struct Uploader <: ServerExtension
             end
 
         end
-        new(:routing, directory, f)
+        new([:routing, :connection], directory, f)
     end
 end
 
 function fileinput(name::String = "",
     message::String = "  Uploaded succesfully!    ")
     inp::Component = input(name * "input", type = "file", name = "fname")
-    inp["onchange"] = """sendFile(this);"""
+    inp["onchange"] = """readFile(this);"""
     sendscript::Component = script("readscript$name", text = """function readFile(input) {
   let file = input.files[0];
 
