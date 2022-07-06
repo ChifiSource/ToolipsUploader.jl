@@ -10,13 +10,13 @@ mutable struct Uploader <: ServerExtension
     function Uploader(directory::String = "public/uploads",
         upload_f::Function = uploadsave)
         f(rs::Dict{String, Function}, es::Dict{Symbol, ServerExtension}) = begin
-            rs["/uploader/upload"] = upload_f
+            rs["/uploader/upload"] = upload_
         end
         new(:routing, directory, f)
     end
 end
 
-function fileinput(c::Connection)
+function fileinput(name::String)
     inp::Component = input(name * "input", type = "file", name = "fname")
     inpform::Component = form(name, onaction = "/uploader/upload", )
     push!(inpform, inp)
