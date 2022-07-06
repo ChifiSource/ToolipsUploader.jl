@@ -10,10 +10,7 @@ mutable struct Uploader <: ServerExtension
     function Uploader(directory::String = "public/uploads",
         upload_f::Function = uploadsave)
         f(rs::Dict{String, Function}, es::Dict{Symbol, ServerExtension}) = begin
-            rs["/uploader/upload"] = none(c::Connection) = begin
-                upload_f(directory, getpost(c))
-                write!(c, " ")
-            end
+            rs["/uploader/upload"] = upload_f
         end
         new(:routing, directory, f)
     end
@@ -26,11 +23,13 @@ function fileinput(c::Connection, name::String)
     inpform
 end
 
-function uploadsave(dir::String, s::String)
-    println()
-    touch("$dir/$name")
-    open("$dir/$name", "w") do io
-        write(io, body)
+function uploadsave(c::Connection)
+    try
+        c[:Logger].log("incoming uploader")
+        x = getpost(c)
+        c[:Logger.log("hello!")]
+    catch
+        c[:Logger].log("failed to get post")
     end
 end
 export Uploader, fileinput
