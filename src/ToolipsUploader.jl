@@ -61,7 +61,7 @@ function fileinput(f::Function, name::String = "")
     f(cm)
     commands = join(cm.changes)
     jsf = """function () {$commands };"""
-    inp[extras][1][:text] = """function readFile(input) {
+    inp.extras[1][:text] = """function readFile(input) {
   let file = input.files[0];
 
   let reader = new FileReader();
