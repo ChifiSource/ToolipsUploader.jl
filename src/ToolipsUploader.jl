@@ -6,27 +6,18 @@ using ToolipsSession
 mutable struct Uploader <: ServerExtension
     type::Vector{Symbol}
     directory::String
+    lastupload::Dict{String, String}
     f::Function
-    function Uploader(directory::String = "public/uploads",
+    function Uploader(directory::String = "uploads",
         upload_f::Function = uploadsave)
         f(rs::Dict{String, Function}, es::Dict{Symbol, ServerExtension}) = begin
             rs["/uploader/upload"] = upload_f
-            if ~(isdir(directory))
-                try
-                    mkdir(directory)
-                catch
-                    throw("""No directory $directory , server tried to create
-                    directory but was not able to.
-                    """)
-                end
-            end
-
         end
         new([:routing, :connection], directory, f)
     end
 end
 
-function fileinput(name::String = "")
+function fileinput(f::Function, c::Connection, name::String = "")
     inp::Component = input(name * "input", type = "file", name = "fname")
     inp["oninput"] = """readFile(this);"""
     sendscript::Component = script("readscript$name", text = """function readFile(input) {
@@ -51,6 +42,13 @@ function fileinput(name::String = "")
 
 }""")
     push!(inp.extras, sendscript)
+    ip = getip(c)
+    on(c, inp, "change") do cm::ComponentModifier
+        sleep(1)
+        fname = c[:Uploader].lastupload[ip]
+        f(cm, fname)
+        rm(c[:Uploader].lastupload[ip])
+    end
     inp
 end
 
@@ -71,13 +69,17 @@ function uploadsave(c::Connection)
     data = split(getpost(c), "?UP?:")
     name = string(data[2])
     file = string(data[1])
+    directory = c[:Uploader].directory
+    if ~(isdir(directory))
+        mkdir(directory)
+    end
+    c[:Uploader].lastupload[getip(c)] = directory * "/$name"
     touch(c[:Uploader].directory * "/$name")
     open(c[:Uploader].directory * "/$name", "w") do io
         write(io, file)
     end
     write!(c, "File uploaded successfully")
 end
-
 
 export Uploader, fileinput
 end # module
