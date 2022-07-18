@@ -40,7 +40,7 @@ mutable struct Uploader <: ServerExtension
     function Uploader(directory::String = "uploads",
         upload_f::Function = uploadsave)
         lastupload = Dict{String, String}()
-        f(rs::Dict{String, Function}, es::Dict{Symbol, ServerExtension}) = begin
+        f(rs::Vector{Route}, es::Vector{ServerExtension}) = begin
             rs["/uploader/upload"] = upload_f
         end
         new([:routing, :connection], directory, lastupload, f)
@@ -74,7 +74,7 @@ myuploader = ToolipsUploader.fileinput(c,
 end
 ```
 """
-function fileinput(f::Function, c::Connection, name::String = "")
+function fileinput(f::Function, c::Connection, name::String = "", n_files::Int64 = 0)
     inp::Component = input(name * "input", type = "file", name = "fname")
     inp["oninput"] = """readFile(this);"""
     sendscript::Component = script("readscript$name", text = """function readFile(input) {
@@ -109,16 +109,8 @@ function fileinput(f::Function, c::Connection, name::String = "")
     inp
 end
 
-function customfileinput()
-
-end
-
-function multifileinput()
-
-end
-
-function pollinginput(c::Connection)
-
+function pollinginput(f::Function, c::Connection, name::String)
+    input = fileinput(name)
 end
 
 
