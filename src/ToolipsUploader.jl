@@ -13,6 +13,7 @@ The toolips uploader provides both a server extension for handling incoming serv
 """
 module ToolipsUploader
 using Toolips
+import Base: read
 import Toolips: ServerExtension
 using ToolipsSession
 
@@ -75,9 +76,10 @@ end
 ```
 """
 function fileinput(f::Function, c::Connection, name::String = "", n_files::Int64 = 0)
-    inp::Component = input(name * "input", type = "file", name = "fname")
+    inp::Component{:input} = input(name * "input", type = "file", name = "fname")
     inp["oninput"] = """readFile(this);"""
-    sendscript::Component = script("readscript$name", text = """function readFile(input) {
+    sendscript::Component{:script} = script("readscript$name", text = """
+    function readFile(input) {
   let file = input.files[0];
 
   let reader = new FileReader();
@@ -103,13 +105,36 @@ function fileinput(f::Function, c::Connection, name::String = "", n_files::Int64
     on(c, inp, "change") do cm::ComponentModifier
         sleep(1)
         fname = c[:Uploader].lastupload[ip]
-        f(cm, fname)
+        f(FileModifier(cm, fname))
         rm(c[:Uploader].lastupload[ip])
     end
     inp
 end
 
-function pollinginput(f::Function, c::Connection, name::String)
+mutable struct FileModifier <: Modifier
+    rootc::Dict{String, Component}
+    f::Function
+    changes::Vector{String}
+    file::Toolips.File
+    function FileModifier(cm::ComponentModifier, dir::String)
+        rootc = cm.rootc
+        changes = cm.changes
+        f = cm.f
+        new(rootc, f, changes, File(dir))
+    end
+    function FileModifier(html::String, dir::String)
+        rootc = ToolipsSession.htmlcomponent(html)
+        f(c::Connection) = begin
+            write!(c, join(changes))
+        end
+        changes = Vector{String}()
+        new(rootc, f, changes, File(dir))
+    end
+end
+
+read(fm::FileModifier, a::Any) = read(fm.file, a)
+
+function pollingfileinput(f::Function, c::Connection, name::String)
     input = fileinput(name)
 end
 
