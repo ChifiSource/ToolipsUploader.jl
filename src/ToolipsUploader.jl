@@ -132,8 +132,8 @@ mutable struct FileModifier <: Modifier
     end
 end
 
-read(fm::FileModifier, a::Any) = read(fm.file, a)
-
+read(f::Function, fm::FileModifier, a::String) = read(f, fm.file, a)
+read(fm::FileModifier, T::Type) = read(fm.file, T)
 function pollingfileinput(f::Function, c::Connection, name::String)
     input = fileinput(name)
 end
