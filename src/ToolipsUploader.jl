@@ -41,7 +41,7 @@ mutable struct Uploader <: ServerExtension
     function Uploader(directory::String = "uploads",
         upload_f::Function = uploadsave)
         lastupload = Dict{String, String}()
-        f(rs::Vector{Route}, es::Vector{ServerExtension}) = begin
+        f(rs::Vector{AbstractRoute}, es::Vector{ServerExtension}) = begin
             rs["/uploader/upload"] = upload_f
         end
         new([:routing, :connection], directory, lastupload, f)
