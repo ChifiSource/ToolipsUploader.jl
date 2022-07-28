@@ -14,7 +14,7 @@ The toolips uploader provides both a server extension for handling incoming serv
 module ToolipsUploader
 using Toolips
 import Base: read
-import Toolips: ServerExtension
+import Toolips: ServerExtension, AbstractRoute
 using ToolipsSession
 import ToolipsSession: Modifier
 """
