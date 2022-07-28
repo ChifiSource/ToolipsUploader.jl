@@ -164,7 +164,7 @@ function fileinput(f::Function, c::Connection, name::String = "",
 end
 
 function pollingfileinput(f::Function, name::String, c::Connection,
-    poller::Function, p::Pair{String, String} ..., args ...)
+    poller::Function, p::Pair{String, String} ...; args ...)
     inp::Component{:input} = input(name * "input", type = "file",
      name = "fname", p ..., args ...)
     inp["oninput"] = """readFile$name(this);"""
