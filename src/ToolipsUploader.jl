@@ -16,7 +16,7 @@ using Toolips
 import Base: read
 import Toolips: ServerExtension
 using ToolipsSession
-
+import ToolipsSession: Modifier
 """
 ### Uploader <: Toolips.ServerExtension
 - type::Vector{Symbol} - the type of this extension.
@@ -36,7 +36,7 @@ The Uploader ServerExtension handles incoming client uploads on the server side.
 mutable struct Uploader <: ServerExtension
     type::Vector{Symbol}
     directory::String
-    lastupload::Dict{String, String}
+    lastupload::Dict{String, Any}
     f::Function
     function Uploader(directory::String = "uploads",
         upload_f::Function = uploadsave)
@@ -48,9 +48,59 @@ mutable struct Uploader <: ServerExtension
     end
 end
 
+function uploadsave(c::Connection)
+    pdata::String = getpost(c)
+    if contains(pdata, "?UP?:")
+        data = split(pdata, "?UP?:")
+        name = string(data[2])
+        file = string(data[1])
+        directory = c[:Uploader].directory
+        if ~(isdir(directory))
+            mkdir(directory)
+        end
+        c[:Uploader].lastupload[getip(c)] = directory * "/$name"
+        touch(c[:Uploader].directory * "/$name")
+        open(c[:Uploader].directory * "/$name", "w") do io
+            write(io, file)
+        end
+        write!(c, "File uploaded successfully")
+    elseif contains(pdata, "?POLLUP?:")
+        data = split(pdata, "?POLL?:")
+        name = string(data[1])
+        c[:Uploader].lastupload[getip(c)] = [0, ""]
+    elseif contains(pdata, "?POLL?:")
+        data = split(pdata, "?POLL?:")
+        c[:Uploader].lastupload[getip(c)] = [0, ""]
+    end
+end
+
+mutable struct FileModifier <: Modifier
+    rootc::Dict{String, Component}
+    f::Function
+    changes::Vector{String}
+    file::Toolips.File
+    function FileModifier(cm::ComponentModifier, dir::String)
+        rootc = cm.rootc
+        changes = cm.changes
+        f = cm.f
+        new(rootc, f, changes, File(dir))
+    end
+    function FileModifier(html::String, dir::String)
+        rootc = ToolipsSession.htmlcomponent(html)
+        f(c::Connection) = begin
+            write!(c, join(changes))
+        end
+        changes = Vector{String}()
+        new(rootc, f, changes, File(dir))
+    end
+end
+
+read(f::Function, fm::FileModifier, a::String) = read(f, fm.file, a)
+read(fm::FileModifier, T::Type) = read(fm.file, T)
+
 """
 **Uploader Interface**
-### fileinput(f::Function, c::Connection, name::String = "")
+### fileinput(name::String = "", f::Function, c::Connection)
 ------------------
 Creates a new fileinput Component, which will upload files to an `Uploader`.
 The `f` function should take a ComponentModifier and a String as positional
@@ -75,11 +125,13 @@ myuploader = ToolipsUploader.fileinput(c,
 end
 ```
 """
-function fileinput(f::Function, c::Connection, name::String = "", n_files::Int64 = 0)
-    inp::Component{:input} = input(name * "input", type = "file", name = "fname")
-    inp["oninput"] = """readFile(this);"""
+function fileinput(f::Function, name::String = "", c::Connection,
+    p::Pair{String, String} ... ; args ...)
+    inp::Component{:input} = input(name * "input", type = "file",
+     name = "fname", p ..., args ...)
+    inp["oninput"] = """readFile$name(this);"""
     sendscript::Component{:script} = script("readscript$name", text = """
-    function readFile(input) {
+    function readFile$name(input) {
   let file = input.files[0];
 
   let reader = new FileReader();
@@ -111,48 +163,46 @@ function fileinput(f::Function, c::Connection, name::String = "", n_files::Int64
     inp
 end
 
-mutable struct FileModifier <: Modifier
-    rootc::Dict{String, Component}
-    f::Function
-    changes::Vector{String}
-    file::Toolips.File
-    function FileModifier(cm::ComponentModifier, dir::String)
-        rootc = cm.rootc
-        changes = cm.changes
-        f = cm.f
-        new(rootc, f, changes, File(dir))
-    end
-    function FileModifier(html::String, dir::String)
-        rootc = ToolipsSession.htmlcomponent(html)
-        f(c::Connection) = begin
-            write!(c, join(changes))
-        end
-        changes = Vector{String}()
-        new(rootc, f, changes, File(dir))
-    end
-end
+function pollingfileinput(f::Function, name::String, c::Connection,
+    poller::Function, p::Pair{String, String} ..., args ...)
+    inp::Component{:input} = input(name * "input", type = "file",
+     name = "fname", p ..., args ...)
+    inp["oninput"] = """readFile$name(this);"""
+    sendscript::Component{:script} = script("readscript$name", text = """
+    function poll$name(event){
+        let xhr = new XMLHttpRequest();
+        xhr.open("POST", "/uploader/upload");
+        xhr.onload = eval(xhr.responseText);
+        xhr.send(event.loaded + "?POLL?:" + event.total);
+        }
+    function readFile$name(input) {
+  let file = input.files[0];
 
-read(f::Function, fm::FileModifier, a::String) = read(f, fm.file, a)
-read(fm::FileModifier, T::Type) = read(fm.file, T)
-function pollingfileinput(f::Function, c::Connection, name::String)
-    input = fileinput(name)
-end
+  let reader = new FileReader();
 
+  reader.readAsText(file);
+  var body = document.getElementsByTagName('body')[0].innerHTML;
+  reader.onload = function() {
+      let xhr = new XMLHttpRequest();
+      xhr.open("POST", "/uploader/upload");
+      xhr
+      xhr.send("?POLLUP?:" + file.name);
+  };
 
-function uploadsave(c::Connection)
-    data = split(getpost(c), "?UP?:")
-    name = string(data[2])
-    file = string(data[1])
-    directory = c[:Uploader].directory
-    if ~(isdir(directory))
-        mkdir(directory)
+  reader.onerror = function() {
+    console.log(reader.error);
+  };
+
+}""")
+    push!(inp.extras, sendscript)
+    ip = getip(c)
+    on(c, inp, "change") do cm::ComponentModifier
+        sleep(1)
+        fname = c[:Uploader].lastupload[ip]
+        f(FileModifier(cm, fname))
+        rm(c[:Uploader].lastupload[ip])
     end
-    c[:Uploader].lastupload[getip(c)] = directory * "/$name"
-    touch(c[:Uploader].directory * "/$name")
-    open(c[:Uploader].directory * "/$name", "w") do io
-        write(io, file)
-    end
-    write!(c, "File uploaded successfully")
+    inp
 end
 
 export Uploader, fileinput
