@@ -125,7 +125,7 @@ myuploader = ToolipsUploader.fileinput(c,
 end
 ```
 """
-function fileinput(f::Function, name::String = "", c::Connection,
+function fileinput(f::Function, c::Connection, name::String = "",
     p::Pair{String, String} ... ; args ...)
     inp::Component{:input} = input(name * "input", type = "file",
      name = "fname", p ..., args ...)
