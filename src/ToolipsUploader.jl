@@ -14,9 +14,9 @@ The toolips uploader provides both a server extension for handling incoming serv
 module ToolipsUploader
 using Toolips
 import Base: read
-import Toolips: ServerExtension, AbstractRoute
+import Toolips: ServerExtension, AbstractRoute, Modifier
 using ToolipsSession
-import ToolipsSession: Modifier
+
 """
 ### Uploader <: Toolips.ServerExtension
 - type::Vector{Symbol} - the type of this extension.
@@ -74,10 +74,15 @@ function uploadsave(c::Connection)
     end
 end
 
-mutable struct FileModifier <: Modifier
+"""
+"""
+mutable struct FileComponenttModifier <: AbstractComponentModifier
     rootc::Dict{String, Component}
     f::Function
     changes::Vector{String}
+    message::String
+    progress::Float64
+    bytes::Pair{Int64, Int64}
     file::Toolips.File
     function FileModifier(cm::ComponentModifier, dir::String)
         rootc = cm.rootc
@@ -93,6 +98,18 @@ mutable struct FileModifier <: Modifier
         changes = Vector{String}()
         new(rootc, f, changes, File(dir))
     end
+end
+
+progress(f::Function, fm::FileModifier) = begin
+
+end
+
+error(f::Function, fm::FileModifier) = begin
+
+end
+
+abort(f::Function, fm::FileModifier) = begin
+
 end
 
 read(f::Function, fm::FileModifier, a::String) = read(f, fm.file, a)
@@ -145,48 +162,6 @@ function fileinput(f::Function, c::Connection, name::String = "",
       xhr.setRequestHeader("Content-Type", "application/json");
       xhr.onload = eval(xhr.responseText);
       xhr.send(reader.result + "?UP?:" + file.name);
-  };
-
-  reader.onerror = function() {
-    console.log(reader.error);
-  };
-
-}""")
-    push!(inp.extras, sendscript)
-    ip = getip(c)
-    on(c, inp, "change") do cm::ComponentModifier
-        sleep(1)
-        fname = c[:Uploader].lastupload[ip]
-        f(FileModifier(cm, fname))
-        rm(c[:Uploader].lastupload[ip])
-    end
-    inp
-end
-
-function pollingfileinput(f::Function, name::String, c::Connection,
-    poller::Function, p::Pair{String, String} ...; args ...)
-    inp::Component{:input} = input(name * "input", type = "file",
-     name = "fname", p ..., args ...)
-    inp["oninput"] = """readFile$name(this);"""
-    sendscript::Component{:script} = script("readscript$name", text = """
-    function poll$name(event){
-        let xhr = new XMLHttpRequest();
-        xhr.open("POST", "/uploader/upload");
-        xhr.onload = eval(xhr.responseText);
-        xhr.send(event.loaded + "?POLL?:" + event.total);
-        }
-    function readFile$name(input) {
-  let file = input.files[0];
-
-  let reader = new FileReader();
-
-  reader.readAsText(file);
-  var body = document.getElementsByTagName('body')[0].innerHTML;
-  reader.onload = function() {
-      let xhr = new XMLHttpRequest();
-      xhr.open("POST", "/uploader/upload");
-      xhr
-      xhr.send("?POLLUP?:" + file.name);
   };
 
   reader.onerror = function() {
