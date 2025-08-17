@@ -8,8 +8,9 @@ This software is MIT-licensed.
 The toolips uploader provides both a server extension for handling incoming server
     uploads, as well as some component upload buttons that can be written to send
     files to the server.
-##### Module Composition
-- [**Toolips**](https://github.com/ChifiSource/Toolips.jl)
+```julia
+
+```
 """
 module ToolipsUploader
 import Base: read
@@ -19,30 +20,111 @@ import Toolips: AbstractRoute, Modifier
 using ToolipsSession
 import ToolipsSession: AbstractComponentModifier, InputMap, bind, do_session_command, register!
 
-struct StreamFileInfo
+"""
+```julia
+struct StreamFileInfo{T <: AbstractString}
+```
+- `size`**::Int64**
+- `loaded`**::Int64**
+- `data`**::T**
+
+`StreamFileInfo` contains information on a currently uploading file. This structure is passed, 
+alongside a `ComponentModifier`, to a *progress* function for an upload map. In this progress function, 
+the `size` and `data` can be used to get an upload percentage and `loaded` holds the currently loaded data, which 
+could easily be written to a file. Make sure to check out `UploadMap` before learning more about this structure.
+```julia
+StreamFileInfo(::Int64, ::Int64, ::AbstractString)
+```
+example
+```julia
+function upmprog(cm::ComponentModifier, info::StreamFileInfo)
+    upl_data = upl_data * info.data
+end
+```
+- See also: `UploadMap`, `Components.bind`, `fileinput`
+"""
+struct StreamFileInfo{T <: AbstractString}
     size::Int64
     loaded::Int64
-    data::AbstractString
+    data::T
+    StreamFileInfo(size::Integer, loaded::Integer, data::AbstractString) = new{typeof(data)}(size, loaded, data)
 end
 
+"""
+```julia
+default_complete(cm::ComponentModifier) -> ::Nothing
+```
+The default *complete* function for an `UploadMap`. Simply `console.logs` `upload complete`.
+```julia
+```
+- See also: `default_progress`, `default_init`, `UploadMap`
+"""
 function default_complete(cm::ComponentModifier)
     push!(cm.changes, "console.log('upload complete');")
 end
 
+"""
+```julia
+default_progress(cm::ComponentModifier, info::StreamFileInfo) -> ::Nothing
+```
+The default *progress* function for an `UploadMap`. When binded, presents a warning message 
+as not binding progress makes the uploader effectively useless.
+
+- See also: `StreamFileInfo`, `default_init`, `default_complete`, `UploadMap`
+"""
 function default_progress(cm::ComponentModifier, info::StreamFileInfo)
     push!(cm.changes, "console.log('sent info to server');")
     @info "unhandled uploaded file bytes (no progress function): $(info.loaded) / $(info.size)"
 end
 
+"""
+```julia
+default_init(cm::ComponentModifier, filesize::Integer, name::AbstractString) -> ::Nothing
+```
+The default *init* function for an `UploadMap`. The init function will take a `ComponentModifier`, the filesize, 
+and the name of the file. There is currently no way to reject an incoming upload, this will be added in a future version.
+
+- See also: `StreamFileInfo`, `default_init`, `default_complete`, `UploadMap`
+"""
 function default_init(cm::ComponentModifier, filesize::Integer, name::AbstractString)
     push!(cm.changes, "console.log('started upload');")
 end
 
+"""
+```julia
+mutable struct UploadMap <: InputMap
+```
+- `init`**::Function**
+- `progress`**::Function**
+- `complete`**::Function**
+
+The `UploadMap` stores multiple upload bindings for application on one `fileinput`
+    `Component`. `:init`, `:progress`, and `:complete` can all be bound using `bind`. Each of these functions
+    takes different arguments.
+```julia
+# init:
+# runs when the upload starts, provides filesize in bytes and file name
+(cm::ComponentModifier, filesize::Integer, name::AbstractString)
+# --
+# progress:
+# runs each time the upload polls, provides raw file data, current bytecount, 
+ # and total byte count via `FileStreamInfo`.
+(cm::ComponentModifier, info::StreamFileInfo)
+# --
+# complete:
+# runs when the upload finishes.
+(cm::ComponentModifier)
+```
+example:
+```julia
+```
+- See also: `FileStreamInfo`, `ToolipsUploader`
+"""
 mutable struct UploadMap <: InputMap
     init::Function
     progress::Function
     complete::Function
-    UploadMap() = new(default_init, default_progress, default_complete)::UploadMap
+    UploadMap(complete = default_complete) = new(default_init, default_progress, complete)::UploadMap
 end
 
 function do_session_command(c::AbstractConnection, command::Type{ToolipsSession.SessionCommand{:UPL}}, raw::String)
@@ -57,12 +139,21 @@ function do_session_command(c::AbstractConnection, command::Type{ToolipsSession.
         datastr = String([parse(UInt8, val) for val in split(argsplits[5], ",")])
         info = StreamFileInfo(parse(Int64, argsplits[4]), parse(Int64, argsplits[3]), datastr)
         fs[2](cm, info)
+        info = nothing
     else
         # upload start
         cm = ComponentModifier(string(argsplits[5]))
         fs[1](cm, parse(Int64, argsplits[3]), argsplits[4])
     end
     write!(c, cm)
+end
+
+function bind(f::Function, um::UploadMap, funcname::Symbol)
+    if ~(funcname in (:init, :progress, :complete))
+        throw(":$funcname is not an upload map option (:init, :progress, :complete)")
+    end
+    setfield!(um, funcname, f)
+    nothing::Nothing
 end
 
 function bind(c::AbstractConnection, fileinput::Component{:fileinput}, um::UploadMap)
@@ -107,8 +198,22 @@ function fileinput(name::String = "", p::Pair{String, String} ... ; args ...)
     Component{:fileinput}(name, p ..., type = "file", files = "-", tag = "input"; args ...)
 end
 
-function area_fileinput()
+function bind(component::Component{<:Any}, fileinp::Component{:fileinput}, hide::Bool = true; 
+    bindto::Symbol = :onclick)
+    component[bindto] = "'document.getElementById(\"$(fileinp.name)\").click();'"
+    if hide
+        style!(fileinp, "display" => "none")
+    end
+    nothing
+end
 
+
+function trigger!(cm::AbstractComponentModifier, finp::Any)
+    if typeof(finp) <: AbstractComponent
+        finp = finp.name
+    end
+    push!(cm.changes, "document.getElementById('$(finp)').click();")
+    nothing::Nothing
 end
 
 export fileinput, StreamFileInfo
