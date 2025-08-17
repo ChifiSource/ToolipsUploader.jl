@@ -99,7 +99,7 @@ mutable struct UploadMap <: InputMap
 - `complete`**::Function**
 
 The `UploadMap` stores multiple upload bindings for application on one `fileinput`
-    `Component`. `:init`, `:progress`, and `:complete` can all be bound using `bind`. Each of these functions
+    `Component`. `:init`, `:progress`, and `:complete` can all be bound using `Components.bind`. Each of these functions
     takes different arguments.
 ```julia
 # init:
@@ -118,7 +118,7 @@ The `UploadMap` stores multiple upload bindings for application on one `fileinpu
 example:
 ```julia
 ```
-- See also: `FileStreamInfo`, `ToolipsUploader`
+- See also: `FileStreamInfo`, `ToolipsUploader`, `default_init`, `default_progress`, `Components.bind`
 """
 mutable struct UploadMap <: InputMap
     init::Function
@@ -148,6 +148,23 @@ function do_session_command(c::AbstractConnection, command::Type{ToolipsSession.
     write!(c, cm)
 end
 
+"""
+#### toolips uploader upload map bind bindings
+```julia
+# binds functions to `UploadMap`:
+bind(f::Function, um::UploadMap, funcname::Symbol) -> ::Nothing
+# binds `UploadMap` to components:
+bind(c::AbstractConnection, fileinput::Component{:fileinput}, um::UploadMap)
+
+# special binding, binds component to trigger upload. (For alternate upload button.)
+bind(component::Component{<:Any}, fileinp::Component{:fileinput}, hide::Bool = true; 
+    bindto::Symbol = :onclick)
+```
+These bindings are used to bind a given `Function` to an `UploadMap` command. These are 
+`:init`, `:progress`, and `:complete`. For more information on creating these bindings, see 
+`UploadMap`.
+- See also: `UploadMap`, `default_init`, `fileinput`, `trigger!`, `StreamFileInfo`
+"""
 function bind(f::Function, um::UploadMap, funcname::Symbol)
     if ~(funcname in (:init, :progress, :complete))
         throw(":$funcname is not an upload map option (:init, :progress, :complete)")
@@ -194,6 +211,15 @@ function bind(c::AbstractConnection, fileinput::Component{:fileinput}, um::Uploa
     nothing::Nothing
 end
 
+"""
+```julia
+fileinput(name::String = "", p::Pair{String, String} ... ; args ...) -> ::Component{:fileinput}
+```
+Creates a `fileinput` `Component` for use with an `UploadMap`.
+```julia
+```
+- See also: `UploadMap`, `Components.bind`, `ToolipsUploader`, `StreamFileInfo`
+"""
 function fileinput(name::String = "", p::Pair{String, String} ... ; args ...)
     Component{:fileinput}(name, p ..., type = "file", files = "-", tag = "input"; args ...)
 end
@@ -207,7 +233,15 @@ function bind(component::Component{<:Any}, fileinp::Component{:fileinput}, hide:
     nothing
 end
 
-
+"""
+```julia
+trigger!(cm::AbstractComponentModifier, comp::Any) -> ::Nothing
+```
+Triggers a `Component` by clicking on it.
+```julia
+```
+- See also: `UploadMap`, `Components.bind`, `fileinput`
+"""
 function trigger!(cm::AbstractComponentModifier, finp::Any)
     if typeof(finp) <: AbstractComponent
         finp = finp.name
