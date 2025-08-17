@@ -1,22 +1,15 @@
 <div align = "center"><img src = "https://github.com/ChifiSource/image_dump/blob/main/toolips/toolipsuploader.png" href = "https://toolips.app"></img></div>
 
-- [Documentation](doc.toolips.app/extensions/toolips_base64)
+- [documentation](https://chifidocs.com/Toolips/ToolipsUploader)
 - [Toolips](https://github.com/ChifiSource/Toolips.jl)
-- [Extension Gallery](https://toolips.app/?page=gallery&selected=uploader)
-
 
 #### uploader
-Toolips uploader makes it possible to create incredibly easy file uploads that clean up after themselves. In order for the upload Components to work properly, we need to add the `Uploader` extension. It is also recommended to use `ToolipsDefaults` for things like the `:progress` Component. To create the Uploader, we simply provide its constructor with a directory to store temporary uploads and 
-###### fileinput
-The `fileinput` Component is the main feature that is used to get 
+`ToolipsUploader` demistifies the process of uploading files from the client to the server using a simple `ToolipsSession` extension alongside the `UploadMap`. This is more of an extension to `ToolipsSession` than it is base `Toolips`, and **requires the `Session` extension** to be loaded into your server.
 ```julia
-```
-###### FileModifier
-```julia
-```
-###### file modifier methods
-```julia
-```
-###### full example
-```julia
+using Pkg
+
+Pkg.add("ToolipsUploader")
+
+# Latest breaking changes, sometimes broken or version mismatched
+Pkg.add("ToolipsUploader", rev = "Unstable")
 ```
