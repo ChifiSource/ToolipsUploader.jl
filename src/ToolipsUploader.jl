@@ -9,7 +9,54 @@ The toolips uploader provides both a server extension for handling incoming serv
     uploads, as well as some component upload buttons that can be written to send
     files to the server.
 ```julia
+module ToolipsUploadServer
+using Toolips
+using Toolips.Components
+using ToolipsUploader
+using ToolipsSession
 
+main = route("/") do c::Connection
+    loader = ToolipsUploader.fileinput("sampy")
+    upm = ToolipsUploader.UploadMap()
+    upl_path = ""
+    upl_data = ""
+
+    # init function
+    function upm_init(cm::ComponentModifier, num::Int64, value::AbstractString)
+        if ~(isfile(value))
+            touch(value)
+        end
+        upl_path = value
+        @info "file upload \$value started"
+        push!(cm.changes, "console.log('file upload started');")
+    end
+    # progress function
+    function upmprog(cm::ComponentModifier, info::StreamFileInfo)
+        upl_data = upl_data * info.data
+        push!(cm.changes, "console.log('uploaded \$(info.loaded) of \$(info.size)');")
+    end
+    # complete function
+    bind(upm, :complete) do cm::ComponentModifier
+        open(upl_path, "w") do o::IOStream
+            write(o, upl_data)
+        end
+        @info "wrote file"
+        push!(cm.changes, "console.log('file written');")
+    end
+    # bind to other loader:
+    bind(upm_init, upm, :init)
+    bind(upm_init, upm, :upmprog)
+    new_button = button("trhh", text = "UPLOAD")
+    Components.bind(new_button, loader)
+    Components.bind(c, loader, upm)
+    write!(c, h2(text = "welcome to me uploader"))
+    write!(c, loader, new_button)
+end
+
+SES = Session()
+
+export SES, main, default_404
+end # module
 ```
 """
 module ToolipsUploader
@@ -55,8 +102,6 @@ end
 default_complete(cm::ComponentModifier) -> ::Nothing
 ```
 The default *complete* function for an `UploadMap`. Simply `console.logs` `upload complete`.
-```julia
-```
 - See also: `default_progress`, `default_init`, `UploadMap`
 """
 function default_complete(cm::ComponentModifier)
@@ -117,6 +162,36 @@ The `UploadMap` stores multiple upload bindings for application on one `fileinpu
 ```
 example:
 ```julia
+module UploaderSample
+using ToolipsSession
+using ToolipsUploader
+using Toolips.Components
+
+RAWFILE::String = ""
+my_finput = fileinput("name-of-comp")
+um = UploadMap() do cm::ComponentModifier
+    alert!(cm, "upload completed")
+end
+Components.bind(um, :progress) do (cm, info)
+    #info.size
+    #info.loaded
+    #info.data
+    @info "\$(info.size) / \$(info.loaded)"
+    push!(cm.changes, "console.log('polled uploader');")
+    # raw data is stored in `info.data`
+    UploaderSample.RAWFILE = UploaderSample.RAWFILE * info.data
+end
+
+main = route("/") do c::Connection
+    loader = fileinput("sampy")
+    Components.bind(c, loader, UploaderSample.um)
+    write!(c, body(children = [h3(text = "upload sample:"), loader]))
+end
+
+CSESSION = Session()
+
+export SESSION, main
+end
 ```
 - See also: `FileStreamInfo`, `ToolipsUploader`, `default_init`, `default_progress`, `Components.bind`
 """
@@ -215,13 +290,25 @@ end
 ```julia
 fileinput(name::String = "", p::Pair{String, String} ... ; args ...) -> ::Component{:fileinput}
 ```
-Creates a `fileinput` `Component` for use with an `UploadMap`.
+Creates a `fileinput` `Component` for use with an `UploadMap`. See `Component` for more on 
+`Components`.
 ```julia
+using ToolipsUploader
+using Toolips.Components
+
+my_finput = fileinput("name-of-comp")
+um = UploadMap() do cm::ComponentModifier
+    alert!(cm, "upload completed")
+end
+Components.bind(um, :progress) do (cm, info)
+    @info "\$(info.size) / \$(info.loaded)"
+    # raw data is stored in `info.data`
+end
 ```
 - See also: `UploadMap`, `Components.bind`, `ToolipsUploader`, `StreamFileInfo`
 """
 function fileinput(name::String = "", p::Pair{String, String} ... ; args ...)
-    Component{:fileinput}(name, p ..., type = "file", files = "-", tag = "input"; args ...)
+    Component{:fileinput}(name, p ..., type = "file", tag = "input"; args ...)
 end
 
 function bind(component::Component{<:Any}, fileinp::Component{:fileinput}, hide::Bool = true; 
@@ -231,23 +318,6 @@ function bind(component::Component{<:Any}, fileinp::Component{:fileinput}, hide:
         style!(fileinp, "display" => "none")
     end
     nothing
-end
-
-"""
-```julia
-trigger!(cm::AbstractComponentModifier, comp::Any) -> ::Nothing
-```
-Triggers a `Component` by clicking on it.
-```julia
-```
-- See also: `UploadMap`, `Components.bind`, `fileinput`
-"""
-function trigger!(cm::AbstractComponentModifier, finp::Any)
-    if typeof(finp) <: AbstractComponent
-        finp = finp.name
-    end
-    push!(cm.changes, "document.getElementById('$(finp)').click();")
-    nothing::Nothing
 end
 
 export fileinput, StreamFileInfo
